@@ -8,13 +8,13 @@ from PIL import ImageTk
 
 class WaveformFrame:
     def __init__(self, master: LabelFrame, sound: AudioSegment):
-        # VARIABLES
-        waveform = wf.Waveform(sound)
-        self.img = ImageTk.PhotoImage(waveform.get_image())
+        waveform = [wf.Waveform(each) for each in sound]
+        self.img = [ImageTk.PhotoImage(each.get_image()) for each in waveform]
 
         # WAVEFORM FRAME
         self.waveform_frame = Frame(master)
-        self.waveform_frame.pack(side="left")
+        self.waveform_frame.pack(side="left", expand=True)
 
-        self.waveform_frame_label = Label(self.waveform_frame, image=self.img, justify="left")
-        self.waveform_frame_label.pack(anchor="w")
+        # VARIABLES
+        for each in self.img:
+            Label(self.waveform_frame, image=each, justify="left").pack(side="top", anchor="w")

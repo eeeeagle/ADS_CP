@@ -13,11 +13,11 @@ class SoundFrame:
         filepath = path to audio object
         """
         # VARIABLES
-        self.sound = AudioSegment.from_file(filepath, filepath.split('.')[-1])
+        self.sound = AudioSegment.from_file(filepath, filepath.split('.')[-1]).split_to_mono()
 
         # ROOT FRAME
         self.root = LabelFrame(master, text=filepath, labelanchor="nw", borderwidth=1, relief="solid")
-        self.root.pack(side="top", fill="both", padx=2, pady=2)
+        self.root.pack(side="top", anchor="nw", expand=True, padx=2, pady=2)
         self.root.bind()
 
         # CHILD FRAMES
@@ -25,7 +25,7 @@ class SoundFrame:
         self.sound_waveform_frame = WaveformFrame(self.root, self.sound)
 
     def get_sound(self):
-        return self.sound + self.sound_settings_frame.get_gain()
+        return AudioSegment.from_mono_audiosegments(self.sound) + self.sound_settings_frame.get_gain()
 
     def is_muted(self):
         return self.sound_settings_frame.is_muted()

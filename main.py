@@ -1,5 +1,6 @@
 import os.path
 import simpleaudio as sa
+import threading
 
 from soundframe import SoundFrame
 from tkinter.ttk import Label, LabelFrame, Scale, Combobox
@@ -7,6 +8,7 @@ from tkinter import Tk, IntVar, Frame, Button, Canvas, Scrollbar, Menu, messageb
 from tktooltip import ToolTip
 from pydub import AudioSegment
 from ctypes import *
+from entrywindow import EntryWindow
 
 
 SCREEN_WIDTH = windll.user32.GetSystemMetrics(0)
@@ -17,10 +19,6 @@ EXTENSION_LIST = [("Все поддерживаемые форматы", ".wav .
                   ("MPEG Layer 3", ".mp3"), ("Ogg Vorbis Audio", ".ogg")]
 
 
-def stop_sound():
-    sa.stop_all()
-
-
 def overlay_sounds(sound_list: list[AudioSegment], samplerate: int):
     output_sound = AudioSegment.silent(duration=max([len(sound) for sound in sound_list]), frame_rate=samplerate)
     for sound in sound_list:
@@ -29,11 +27,11 @@ def overlay_sounds(sound_list: list[AudioSegment], samplerate: int):
 
 
 class MainApp:
-    def __init__(self, master):
+    def __init__(self, master: Tk):
         """MASTER = base object"""
 
         """ VARIABLES """
-        self.soundframe_list = list[SoundFrame]()
+        self.sound_frame_list = list[SoundFrame]()
         self.volume = IntVar(value=0)
         self.samplerate = IntVar(value=SAMPLERATE_LIST[5])
 
@@ -49,10 +47,12 @@ class MainApp:
         self.sound_frame_canvas_frame = Frame(self.sound_frame_canvas)
         self.sound_frame_canvas_frame.grid(sticky="nsew")
 
-        self.sound_frame_scrollbar_x = Scrollbar(self.sound_frame, orient="horizontal")
+        self.sound_frame_scrollbar_x = Scrollbar(self.sound_frame, orient="horizontal",
+                                                 command=self.sound_frame_canvas.xview)
         self.sound_frame_scrollbar_y = Scrollbar(self.sound_frame, orient="vertical",
                                                  command=self.sound_frame_canvas.yview)
-        self.sound_frame_canvas.configure(yscrollcommand=self.sound_frame_scrollbar_y.set)
+        self.sound_frame_canvas.configure(xscrollcommand=self.sound_frame_scrollbar_x.set,
+                                          yscrollcommand=self.sound_frame_scrollbar_y.set)
 
         self.sound_frame_canvas.grid(row=0, column=0, sticky="nsew")
         self.sound_frame_scrollbar_x.grid(column=0, row=1, sticky="ew")
@@ -75,7 +75,7 @@ class MainApp:
         self.status_bar_frame = Frame(master, borderwidth=1, relief="ridge")
         self.status_bar_frame.pack(side="bottom", padx=2, pady=2, fill="x")
 
-        self.status_bar_label = Label(self.status_bar_frame, text="text")
+        self.status_bar_label = Label(self.status_bar_frame, text="Остановленно")
         self.status_bar_label.pack(side="left")
 
         """ PLAY FRAME"""
@@ -83,7 +83,7 @@ class MainApp:
         self.play_frame.pack(side="left", padx=2)
 
         """ VOLUME FRAME"""
-        self.volume_frame = LabelFrame(self.toolbar_frame, text="Громкость (dB)", labelanchor="n")
+        self.volume_frame = LabelFrame(self.toolbar_frame, text="Громкость", labelanchor="n")
         self.volume_frame.pack(side="right", padx=2)
 
         """ SAMPLERATE FRAME"""
@@ -95,7 +95,7 @@ class MainApp:
         self.play_button.pack(side="top", fill="both", padx=2, pady=2)
 
         """ STOP BUTTON"""
-        self.stop_button = Button(self.play_frame, text="Стоп", command=stop_sound)
+        self.stop_button = Button(self.play_frame, text="Стоп", command=sa.stop_all)
         self.stop_button.pack(side="top", fill="both", padx=2, pady=2)
 
         """ VOLUME SCALE"""
@@ -103,7 +103,8 @@ class MainApp:
                                   variable=self.volume,
                                   command=lambda s: self.volume.set(value=round(float(s))))
         self.volume_scale.pack(padx=2, pady=2)
-
+        self.volume_scale.bind("<Button-2>", func=lambda e: self.volume.set(value=0))
+        self.volume_scale.bind("<Double-Button-1>", lambda e: self._change_volume())
         ToolTip(self.volume_scale, msg=self._msg_volume, delay=0)
 
         """ SAMPLE RATE COMBOBOX"""
@@ -133,6 +134,14 @@ class MainApp:
         self.main_menu.add_cascade(label="Файл", menu=self.file_menu)
         self.main_menu.add_cascade(label="Справка", menu=self.help_menu)
 
+    def _change_volume(self):
+        def extra_window():
+            window = EntryWindow("Громкость", self.volume.get(), -50, 0)
+            self.volume.set(value=window.value)
+
+        thr = threading.Thread(target=extra_window, args=())
+        thr.start()
+
     def _msg_volume(self):
         return "Громоксть воспроизведения: " + str(self.volume.get()) + " дБ"
 
@@ -141,40 +150,57 @@ class MainApp:
 
         if filepath != "":
             for sound in filepath:
-                self.soundframe_list.append(SoundFrame(self.sound_frame_canvas_frame, sound))
+                self.sound_frame_list.append(SoundFrame(self.sound_frame_canvas_frame, sound))
 
     def _save_file(self):
         filepath = filedialog.asksaveasfilename(title="Экспорт аудиоданных", defaultextension=EXTENSION_LIST[1][1],
                                                 initialfile="Song", filetypes=EXTENSION_LIST[1:])
-        sound_list = [sound.get_sound() for sound in self.soundframe_list]
+        sound_list = [sound.get_sound() for sound in self.sound_frame_list]
         if filepath != "":
             sound = overlay_sounds(sound_list, self.samplerate.get())
             sound.export(filepath, format=os.path.splitext(filepath)[1][1:])
 
     def _play_sound(self):
-        stop_sound()
+        def wait_play():
+            play_object.wait_done()
+            self.status_bar_label.configure(text="Остановленно")
+
+        sa.stop_all()
         sound_list = self._get_active_sound()
         if len(sound_list):
             sound = overlay_sounds(sound_list, self.samplerate.get()) + self.volume.get()
-            sa.play_buffer(sound.raw_data, num_channels=sound.channels,
-                           bytes_per_sample=sound.sample_width, sample_rate=sound.frame_rate)
+            play_object = sa.play_buffer(sound.raw_data, num_channels=sound.channels,
+                                         bytes_per_sample=sound.sample_width, sample_rate=sound.frame_rate)
+            self.status_bar_label.configure(text="Играет")
+
+            wait_play_thread = threading.Thread(target=wait_play, args=())
+            wait_play_thread.start()
         else:
             messagebox.showinfo(title="Воспроизведение невозможно", message="Нет аудио для воспроизведения")
 
     def _get_active_sound(self):
         sound_list = list()
-        for sound in self.soundframe_list:
+        for sound in self.sound_frame_list:
             if not sound.is_muted():
                 sound_list.append(sound.get_sound())
         return sound_list
 
+    def is_empty(self):
+        return len(self.sound_frame_list) == 0
+
 
 if __name__ == "__main__":
+    def on_exit():
+        if app.is_empty() or messagebox.askokcancel("Выход", "Вы действительно хотите выйти?"):
+            root.destroy()
+
     root = Tk()
     root.iconbitmap(default="icon.ico")
     root.title("Аудио редактор")
     root.geometry(str(int(SCREEN_WIDTH * 0.7)) + "x" + str(int(SCREEN_HEIGHT * 0.7)) +
                   "+" + str(int(SCREEN_WIDTH * 0.15)) + "+" + str(int(SCREEN_HEIGHT * 0.15)))
+
+    root.protocol("WM_DELETE_WINDOW", on_exit)
 
     app = MainApp(root)
     root.mainloop()

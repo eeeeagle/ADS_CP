@@ -3,16 +3,18 @@ from PIL import Image, ImageDraw
 
 
 class Waveform(object):
-    bar_count = 107
+    bar_count = 1024
     db_ceiling = 60
 
     def __init__(self, sound: AudioSegment):
+        self.duration = len(sound)
+        print(self.duration / 1000)
         self.peaks = self._calculate_peaks(sound)
         self.image = self._generate_waveform_image()
 
     def _calculate_peaks(self, audio_file: AudioSegment):
         """ Returns a list of audio level peaks """
-        chunk_length = len(audio_file) / self.bar_count
+        chunk_length = 256
         loudness_of_chunks = [audio_file[i * chunk_length: (i + 1) * chunk_length].rms for i in range(self.bar_count)]
         max_rms = max(loudness_of_chunks) * 1.00
 
@@ -35,7 +37,7 @@ class Waveform(object):
 
     def _generate_waveform_image(self):
         """ Returns the full waveform image """
-        im = Image.new('RGB', (848, 128), '#f5f5f5')
+        im = Image.new('RGB', (round(self.duration / 128), 128), '#f5f5f5')
         for index, value in enumerate(self.peaks, start=0):
             column = index * 8 + 2
             upper_endpoint = 64 - value
