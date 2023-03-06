@@ -1,6 +1,7 @@
 from tkinter.ttk import Entry
 from tkinter import Button, Toplevel, Frame
 from tkinter.messagebox import showerror
+from time import sleep
 
 
 class EntryWindow:
@@ -12,7 +13,7 @@ class EntryWindow:
         self.window = Toplevel()
         self.window.wm_attributes('-toolwindow', 'True')
         self.window.title(window_name)
-        self.window.geometry("200x150")
+        self.window.geometry("150x150")
         self.window.resizable(False, False)
         self.window.protocol("WM_DELETE_WINDOW", self._close_window)
 
@@ -34,6 +35,7 @@ class EntryWindow:
         self.running = True
         while self.running:
             while True:
+                sleep(0.1)
                 break
 
     def _close_window(self):

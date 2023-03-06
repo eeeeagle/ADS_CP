@@ -8,7 +8,6 @@ class Waveform(object):
 
     def __init__(self, sound: AudioSegment):
         self.duration = len(sound)
-        print(self.duration / 1000)
         self.peaks = self._calculate_peaks(sound)
         self.image = self._generate_waveform_image()
 
