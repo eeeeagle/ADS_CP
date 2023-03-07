@@ -2,13 +2,14 @@ import os.path
 import simpleaudio as sa
 import threading
 
-from soundframe import SoundFrame
 from tkinter.ttk import Label, LabelFrame, Scale, Combobox
-from tkinter import Tk, IntVar, StringVar, Frame, Button, Canvas, Scrollbar, Menu, messagebox, filedialog
+from tkinter import Tk, IntVar, StringVar, Frame, Button, Menu, messagebox, filedialog
 from tktooltip import ToolTip
 from pydub import AudioSegment
 from ctypes import *
 from entrywindow import change_value
+from tkscrolledframe import ScrolledFrame
+from sound import Sound
 
 from time import sleep
 
@@ -19,6 +20,7 @@ SAMPLERATE_LIST = [8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000,
 EXTENSION_LIST = [("Все поддерживаемые форматы", ".wav .flac .m4a .mp3 .ogg"),
                   ("Microsoft Wave", ".wav"), ("Free Lossless Audio Codec", ".flac"), ("Apple Lossless", ".m4a"),
                   ("MPEG Layer 3", ".mp3"), ("Ogg Vorbis Audio", ".ogg")]
+BG_COLOR = "#3a3a58"
 
 
 def overlay_sounds(sound_list: list[AudioSegment], samplerate: int):
@@ -29,7 +31,7 @@ def overlay_sounds(sound_list: list[AudioSegment], samplerate: int):
 
 
 class MainApp:
-    _sound_frame_list = list[SoundFrame]()
+    _sound_list = list[Sound]()
     _status: StringVar
     _volume: IntVar
     _samplerate: IntVar
@@ -45,11 +47,11 @@ class MainApp:
         self._status = StringVar(value="")
 
         """ MAIN MENU """
-        main_menu = Menu(master)
-        master.config(menu=main_menu)
+        menu = Menu(master)
+        master.config(menu=menu)
 
-        file_menu = Menu(main_menu, tearoff=0)
-        help_menu = Menu(main_menu, tearoff=0)
+        file_menu = Menu(menu, tearoff=0)
+        help_menu = Menu(menu, tearoff=0)
 
         file_menu.add_command(label="Импорт файлов", command=self._open_files)
         file_menu.add_command(label="Экспорт", command=self._save_file)
@@ -59,62 +61,39 @@ class MainApp:
         help_menu.add_command(label="Помощь")
         help_menu.add_command(label="О программе")
 
-        main_menu.add_cascade(label="Файл", menu=file_menu)
-        main_menu.add_cascade(label="Справка", menu=help_menu)
+        menu.add_cascade(label="Файл", menu=file_menu)
+        menu.add_cascade(label="Справка", menu=help_menu)
 
-        """ TOOLBAR FRAME """
-        toolbar_frame = Frame(master, borderwidth=1, relief="ridge")
-        toolbar_frame.pack(side="top", padx=2, pady=2, fill="x")
+        """ BASE FRAMES """
+        toolbar = Frame(master, borderwidth=1, relief="ridge")
+        sound_frame = ScrolledFrame(master, background=BG_COLOR, scrollbars="both")
+        status_bar = Frame(master, borderwidth=1, relief="ridge")
 
-        """ SOUND FRAME """
-        sound_frame = Frame(master)
+        toolbar.pack(side="top", padx=2, pady=2, fill="x")
         sound_frame.pack(side="top", fill="both", expand=True)
+        status_bar.pack(side="bottom", fill="x")
 
-        sound_frame_canvas = Canvas(sound_frame, background="#3a3a58")
-        self._sound_frame_canvas_frame = Frame(sound_frame_canvas, background="#3a3a58")
-        self._sound_frame_canvas_frame.grid(sticky="nsew")
+        """ TOOLBAR FRAMES """
+        play_frame = Frame(toolbar)
+        volume_frame = LabelFrame(toolbar, text="Громкость", labelanchor="n")
+        samplerate_frame = LabelFrame(toolbar, text="Частота дискретизации", labelanchor="n")
 
-        sound_frame_scrollbar_x = Scrollbar(sound_frame, orient="horizontal", command=sound_frame_canvas.xview)
-        sound_frame_scrollbar_y = Scrollbar(sound_frame, orient="vertical", command=sound_frame_canvas.yview)
-        sound_frame_canvas.configure(xscrollcommand=sound_frame_scrollbar_x.set,
-                                     yscrollcommand=sound_frame_scrollbar_y.set)
+        play_frame.pack(side="left", padx=2)
+        volume_frame.pack(side="right", fill="y", padx=2)
+        samplerate_frame.pack(side="right", fill="y", padx=2)
 
-        sound_frame_canvas.grid(row=0, column=0, sticky="nsew")
-        sound_frame_scrollbar_x.grid(column=0, row=1, sticky="ew")
-        sound_frame_scrollbar_y.grid(column=1, row=0, sticky="ns")
-
-        sound_frame.columnconfigure(0, weight=1)
-        sound_frame.rowconfigure(0, weight=1)
-
-        sound_frame_canvas.create_window((0, 0), window=self._sound_frame_canvas_frame, anchor="nw")
-
-        self._sound_frame_canvas_frame.bind(
-            "<Configure>",
-            lambda e: sound_frame_canvas.configure(scrollregion=sound_frame_canvas.bbox("all"))
-        )
-
-        sound_frame_canvas.bind(
-            "<Configure>",
-            lambda e: sound_frame_canvas.itemconfig("scrollable", width=e.width, height=e.height)
-        )
-
-        """ TOOLBAR: PLAY FRAME"""
-        play_frame = Frame(toolbar_frame)
+        """ PLAY FRAME """
         play_button = Button(play_frame, text="Играть", command=self._play_sound)
         pause_button = Button(play_frame, text="Пауза", command=self._pause_sound)
         stop_button = Button(play_frame, text="Стоп", command=sa.stop_all)
         record_button = Button(play_frame, text="Запись", command=self._record_sound)
 
-        play_frame.pack(side="left", padx=2)
         play_button.pack(side="left", fill="both", padx=2, pady=2)
         pause_button.pack(side="left", fill="both", padx=2, pady=2)
         stop_button.pack(side="left", fill="both", padx=2, pady=2)
         record_button.pack(side="left", fill="both", padx=2, pady=2)
 
-        """ TOOLBAR: VOLUME LABEL FRAME"""
-        volume_frame = LabelFrame(toolbar_frame, text="Громкость", labelanchor="n")
-        volume_frame.pack(side="right", fill="y", padx=2)
-
+        """ VOLUME FRAME"""
         volume_scale = Scale(volume_frame, orient="horizontal", length=100, from_=-50.0, to=0.0,
                              variable=self._volume,
                              command=lambda s: self._volume.set(value=round(float(s))))
@@ -123,34 +102,44 @@ class MainApp:
         volume_scale.bind("<Double-Button-1>", lambda e: change_value("Громкость", self._volume, -50, 0))
         ToolTip(volume_scale, msg=self._msg_volume, delay=0)
 
-        """ TOOLBAR: SAMPLERATE FRAME"""
-        samplerate_frame = LabelFrame(toolbar_frame, text="Частота дискретизации", labelanchor="n")
-        samplerate_frame.pack(side="right", fill="y", padx=2)
-
+        """ SAMPLERATE FRAME"""
         samplerate_combobox = Combobox(samplerate_frame, values=SAMPLERATE_LIST,
                                        textvariable=self._samplerate, state="readonly")
         samplerate_combobox.current(5)
         samplerate_combobox.pack(fill="both", padx=2, pady=2)
 
-        """ STATUS BAR FRAME"""
-        status_bar_frame = Frame(master, borderwidth=1, relief="ridge")
-        self._status_bar_label = Label(status_bar_frame, textvariable=self._status)
+        """ SOUND FRAME """
+        sound_frame.bind_arrow_keys(master)
+        sound_frame.bind_scroll_wheel(master)
+        self.sound_inner_frame = sound_frame.display_widget(Frame, fit_width=True)
 
-        status_bar_frame.pack(side="bottom", fill="x")
+        """ STATUS BAR FRAME"""
+        self._status_bar_label = Label(status_bar, textvariable=self._status)
         self._status_bar_label.pack(side="left")
 
-        thread_collect_closed = threading.Thread(target=self._closed_sound_collector, args=())
-        thread_collect_closed.start()
+        """ TRACKING FUNCTIONS START """
+        thread_track_closed = threading.Thread(target=self._closed_tracking, args=())
+        thread_track_closed.start()
+
+        thread_track_solo = threading.Thread(target=self._solo_tracking, args=())
+        thread_track_solo.start()
 
     def __del__(self):
         sa.stop_all()
         self._on_exit = True
 
-    def _closed_sound_collector(self):
+    def _closed_tracking(self):
         while not self._on_exit:
-            for sound in self._sound_frame_list:
+            for sound in self._sound_list:
                 if sound.is_close():
-                    self._sound_frame_list.remove(sound)
+                    self._sound_list.remove(sound)
+            sleep(1)
+
+    def _solo_tracking(self):
+        while not self._on_exit:
+            if Sound.solo_id >= 0:
+                for sound in self._sound_list:
+                    sound.solo_tracking()
             sleep(1)
 
     def _msg_volume(self):
@@ -161,12 +150,12 @@ class MainApp:
 
         if filepath != "":
             for sound in filepath:
-                self._sound_frame_list.append(SoundFrame(self._sound_frame_canvas_frame, sound))
+                self._sound_list.append(Sound(self.sound_inner_frame, sound))
 
     def _save_file(self):
         filepath = filedialog.asksaveasfilename(title="Экспорт аудиоданных", defaultextension=EXTENSION_LIST[1][1],
                                                 initialfile="Song", filetypes=EXTENSION_LIST[1:])
-        sound_list = [sound.get_sound() for sound in self._sound_frame_list]
+        sound_list = [sound.get_sound() for sound in self._sound_list]
         if filepath != "":
             sound = overlay_sounds(sound_list, self._samplerate.get())
             sound.export(filepath, format=os.path.splitext(filepath)[1][1:])
@@ -200,18 +189,19 @@ class MainApp:
 
     def _get_active_sound(self):
         sound_list = list()
-        for sound in self._sound_frame_list:
+        for sound in self._sound_list:
             sound_list.append(sound.get_sound())
         return sound_list
 
     def is_empty(self):
-        return len(self._sound_frame_list) == 0
+        return len(self._sound_list) == 0
 
 
 if __name__ == "__main__":
     def on_exit():
         if app.is_empty() or messagebox.askokcancel("Выход", "Вы действительно хотите выйти?"):
             sa.stop_all()
+            sleep(1)
             root.destroy()
 
     root = Tk()
