@@ -10,7 +10,7 @@ class WaveformFrame:
     _label_list = list[Label]()
 
     def __init__(self, master: Frame, sound_list: list[AudioSegment]):
-        self.root = Frame(master, borderwidth=1, relief="solid")
+        self._root = Frame(master, borderwidth=1, relief="solid")
         self.update_image_list(sound_list)
 
     def update_image_list(self, sound_list: list[AudioSegment]):
@@ -19,7 +19,16 @@ class WaveformFrame:
 
         waveform_list = [wf.Waveform(sound) for sound in sound_list]
         self._image_list = [PhotoImage(each.get_image()) for each in waveform_list]
-        self._label_list = [Label(self.root, image=image, justify="left") for image in self._image_list]
+        self._label_list = [Label(self._root, image=image, justify="left") for image in self._image_list]
 
         for label in self._label_list:
             label.pack(side="top", anchor="w")
+
+    def grid(self, row: int, column: int, sticky: str):
+        self._root.grid(row=row, column=column, sticky=sticky)
+
+    def grid_show(self):
+        self._root.grid()
+
+    def grid_remove(self):
+        self._root.grid_remove()
