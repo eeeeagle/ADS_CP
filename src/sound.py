@@ -10,6 +10,7 @@ from tkinter import Button, Label, Frame, DoubleVar, IntVar
 
 class Sound:
     solo_id = -1
+    delete_allowed = True
     _id = 0
 
     def __init__(self, master: Frame, filename: str):
@@ -30,34 +31,34 @@ class Sound:
 
         # ROOT
         self._root = Frame(master)
-        self.settings_frame = Frame(self._root, borderwidth=1, relief="solid")
-        self.waveform_frame = Frame(self._root, borderwidth=1, relief="solid")
+        settings_frame = Frame(self._root, borderwidth=1, relief="solid")
+        waveform_frame = Frame(self._root, borderwidth=1, relief="solid")
 
         # BUTTONS
-        close_button = Button(self.settings_frame, text="Закрыть", justify="center", command=self._close)
-        self.hide_button = Button(self.settings_frame, text="Скрыть", justify="center", command=self._hide)
-        self.mute_button = Button(self.settings_frame, text="Тихо", justify="center", command=self._mute)
-        self.solo_button = Button(self.settings_frame, text="Соло", justify="center", command=self._solo)
-        self.effects_button = Button(self.settings_frame, text="Эффекты", justify="center", command=self._effects)
+        close_button = Button(settings_frame, text="Закрыть", justify="center", command=self._close)
+        self.hide_button = Button(settings_frame, text="Скрыть", justify="center", command=self._hide)
+        self.mute_button = Button(settings_frame, text="Тихо", justify="center", command=self._mute)
+        self.solo_button = Button(settings_frame, text="Соло", justify="center", command=self._solo)
+        self.effects_button = Button(settings_frame, text="Эффекты", justify="center", command=self._effects)
 
         # GAIN FRAME
-        self.gain_scale_frame = LabelFrame(self.settings_frame, text="Усиление", labelanchor="n")
+        self.gain_scale_frame = LabelFrame(settings_frame, text="Усиление", labelanchor="n")
         self.gain_scale = Scale(self.gain_scale_frame, orient="horizontal", length=100, from_=-36.0, to=36.0,
                                 variable=self._gain, command=lambda e: self._gain.set(value=round(float(e), 0)))
         self.gain_scale.pack(side="top", fill="both", expand=True)
 
-        self.gain_scale_frame.bind("<Button-2>", func=lambda e: self._gain.set(value=0.0))
-        self.gain_scale_frame.bind("<Double-Button-1>", lambda e: change_value("Усиление", self._gain, -36.0, 36.0))
-        ToolTip(self.gain_scale_frame, msg=self._msg_gain)
+        self.gain_scale.bind("<Button-2>", func=lambda e: self._gain.set(value=0.0))
+        self.gain_scale.bind("<Double-Button-1>", lambda e: change_value("Усиление", self._gain, -36.0, 36.0))
+        ToolTip(self.gain_scale, msg=self._msg_gain)
 
         # PAN FRAME
-        self.pan_scale_frame = LabelFrame(self.settings_frame, text="Баланс", labelanchor="n")
+        self.pan_scale_frame = LabelFrame(settings_frame, text="Баланс", labelanchor="n")
         self.pan_scale = Scale(self.pan_scale_frame, orient="horizontal", length=100, from_=-100, to=100,
                                variable=self._pan, command=lambda e: self._pan.set(value=round(float(e))))
         self.pan_scale.pack(side="top", fill="both", expand=True)
-        self.pan_scale_frame.bind("<Button-2>", func=lambda e: self._pan.set(value=0))
-        self.pan_scale_frame.bind("<Double-Button-1>", lambda e: change_value("Усиление", self._pan, -100, 100))
-        ToolTip(self.pan_scale_frame, msg=self._msg_pan)
+        self.pan_scale.bind("<Button-2>", func=lambda e: self._pan.set(value=0))
+        self.pan_scale.bind("<Double-Button-1>", lambda e: change_value("Усиление", self._pan, -100, 100))
+        ToolTip(self.pan_scale, msg=self._msg_pan)
 
         # SETTINGS GRID
         close_button.grid(row=0, column=0, padx=2, pady=2, sticky="we")
@@ -68,20 +69,20 @@ class Sound:
         self.gain_scale_frame.grid(row=3, column=0, columnspan=2, padx=2, pady=2, sticky="nsew")
         self.pan_scale_frame.grid(row=4, column=0, columnspan=2, padx=2, pady=2, sticky="nsew")
 
-        self.settings_frame.grid_columnconfigure(0, weight=1)
-        self.settings_frame.grid_columnconfigure(1, weight=1)
+        settings_frame.grid_columnconfigure(0, weight=1)
+        settings_frame.grid_columnconfigure(1, weight=1)
 
         # WAVEFORM FRAME
         self._image_list = list[PhotoImage]()
         self._label_list = list[Label]()
 
-        name_frame = Frame(self.waveform_frame)
+        name_frame = Frame(waveform_frame)
         self._name_label = Label(name_frame, text=filename, justify="left", anchor="w")
 
-        self.image_frame = Frame(self.waveform_frame)
+        self.image_frame = Frame(waveform_frame)
 
         self._name_label.grid(sticky="nsew")
-        self.update_image_list(self._audio_track_list)
+        self._update_image_list(self._audio_track_list)
 
         name_frame.grid_rowconfigure(0, weight=1)
         name_frame.grid_columnconfigure(0, weight=1)
@@ -89,16 +90,15 @@ class Sound:
         name_frame.grid(row=0, sticky="nsew")
         self.image_frame.grid(row=1, sticky="nsew")
 
-        self.waveform_frame.grid_rowconfigure(0, weight=1)
-        self.waveform_frame.grid_rowconfigure(1, weight=1)
+        waveform_frame.grid_rowconfigure(0, weight=1)
+        waveform_frame.grid_rowconfigure(1, weight=1)
 
         # PACK ROOT
 
-        self.settings_frame.pack(fill="y", side="left")
-        self.waveform_frame.pack(fill="both", side="left")
-        self._root.grid(row=self.ID, sticky="nsew", padx=2, pady=2)
+        settings_frame.pack(fill="y", side="left")
+        waveform_frame.pack(fill="both", side="left")
 
-    def update_image_list(self, sound_list: list[AudioSegment]):
+    def _update_image_list(self, sound_list: list[AudioSegment]):
         self._image_list.clear()
         self._label_list.clear()
 
@@ -131,9 +131,8 @@ class Sound:
             self._is_hide = False
 
     def _close(self):
-        if not self._is_close:
-            self.settings_frame.destroy()
-            self.waveform_frame.destroy()
+        if not self._is_close and self.delete_allowed:
+            self._root.destroy()
             self._is_close = True
 
     def _mute(self):
@@ -144,7 +143,7 @@ class Sound:
         self.set_solo(not self.is_solo())
 
     def _effects(self):
-        print(self.ID, end=": effects")
+        print(self.ID, end=": effects\n")
 
     def is_close(self):
         return self._is_close
@@ -160,11 +159,10 @@ class Sound:
 
     def get_sound(self):
         if not self.is_mute():
-            return AudioSegment.from_mono_audiosegments(*self._audio_track_list).pan(self._pan.get()) + self._gain.get()
+            audio = AudioSegment.from_mono_audiosegments(*self._audio_track_list)
+            audio = audio.pan(self._pan.get() / 100)
+            return audio + self._gain.get()
         return AudioSegment.empty()
-
-    def get_frames(self):
-        return self.settings_frame, self.waveform_frame
 
     def set_mute(self, state: bool):
         if state:
@@ -194,8 +192,11 @@ class Sound:
         return "Усиление: " + str(self._gain.get()) + " дБ"
 
     def _msg_pan(self):
-        if self._pan.get() > 0.0:
-            return "Баланс: " + str(round(self._pan.get())) + "% правый"
-        if self._pan.get() < 0.0:
-            return "Баланс: " + str(abs(round(self._pan.get()))) + "% левый"
+        if self._pan.get() > 0:
+            return "Баланс: " + str(self._pan.get()) + "% правый"
+        if self._pan.get() < 0:
+            return "Баланс: " + str(self._pan.get() * -1) + "% левый"
         return "Баланс: центр"
+
+    def grid(self, row: int):
+        self._root.grid(row=row, sticky="nsew", padx=2, pady=2)
