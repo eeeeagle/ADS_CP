@@ -71,12 +71,12 @@ class MainApp:
 
         """ TOOLBAR FRAMES """
         play_frame = Frame(toolbar)
-        volume_frame = LabelFrame(toolbar, text="Громкость", labelanchor="n")
         samplerate_frame = LabelFrame(toolbar, text="Частота дискретизации", labelanchor="n")
+        volume_frame = LabelFrame(toolbar, text="Громкость", labelanchor="n")
 
         play_frame.pack(side="left", padx=2)
-        volume_frame.pack(side="right", fill="y", padx=2)
         samplerate_frame.pack(side="right", fill="y", padx=2)
+        volume_frame.pack(side="right", fill="y", padx=2)
 
         """ PLAY FRAME """
         play_button = Button(play_frame, text="Играть", command=self._play_sound)
@@ -90,13 +90,13 @@ class MainApp:
         record_button.pack(side="left", fill="both", padx=2, pady=2)
 
         """ VOLUME FRAME"""
-        volume_scale = Scale(volume_frame, orient="horizontal", length=100, from_=-50.0, to=0.0,
+        volume_scale = Scale(volume_frame, orient="horizontal", length=100, from_=-50, to=0,
                              variable=self._volume,
                              command=lambda s: self._volume.set(value=round(float(s))))
         volume_scale.pack(padx=2, pady=2)
         volume_scale.bind("<Button-2>", func=lambda e: self._volume.set(value=0))
         volume_scale.bind("<Double-Button-1>", lambda e: change_value("Громкость", self._volume, -50, 0))
-        ToolTip(volume_scale, msg=self._msg_volume(), delay=0)
+        ToolTip(volume_scale, msg=self._msg_volume, delay=0)
 
         """ SAMPLERATE FRAME"""
         samplerate_combobox = Combobox(samplerate_frame, values=SAMPLERATE_LIST,

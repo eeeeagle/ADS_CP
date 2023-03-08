@@ -1,48 +1,32 @@
-from pydub import AudioSegment
-from PIL import Image, ImageDraw
+import tkinter as tk
+import librosa.display
+
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
-class Waveform(object):
-    bar_count = 1024
-    db_ceiling = 60
+class SampleWaveform(tk.Frame):
+    def __init__(self, master: tk.Misc, sound, sample_rate):
+        super().__init__(master)
 
-    def __init__(self, sound: AudioSegment):
-        self.duration = len(sound)
-        self.peaks = self._calculate_peaks(sound)
-        self.image = self._generate_waveform_image()
+        self.canvas_frame = tk.Frame(self.master)
+        self.canvas_frame.pack(fill="both")
 
-    def _calculate_peaks(self, audio_file: AudioSegment):
-        """ Returns a list of audio level peaks """
-        chunk_length = 256
-        loudness_of_chunks = [audio_file[i * chunk_length: (i + 1) * chunk_length].rms for i in range(self.bar_count)]
-        max_rms = max(loudness_of_chunks) * 1.00
+        self.fig = Figure(figsize=(len(sound) / sample_rate / 20, 2), dpi=100)
+        self.fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+        self.ax = self.fig.add_subplot()
 
-        return [int((loudness / max_rms) * self.db_ceiling) for loudness in loudness_of_chunks]
+        self.ax.xaxis.set_visible(False)
+        self.ax.yaxis.set_visible(False)
 
-    @staticmethod
-    def _get_bar_image(size: (int, int), fill):
-        """ Returns an image of a bar. """
-        width, height = size
-        bar = Image.new('RGBA', size, fill)
+        self.canvas = FigureCanvasTkAgg(self.fig, self.canvas_frame)
+        self.canvas.get_tk_widget().grid(column=0, row=0, sticky="nsew")
 
-        end = Image.new('RGBA', (width, 2), fill)
-        draw = ImageDraw.Draw(end)
-        draw.point([(0, 0), (3, 0)], fill='#c1c1c1')
-        draw.point([(0, 1), (3, 1), (1, 0), (2, 0)], fill='#555555')
+        self.adaptor = librosa.display.waveshow(sound, sr=sample_rate, ax=self.ax, axis="s", lw=0.5, zorder=1)
 
-        bar.paste(end, (0, 0))
-        bar.paste(end.rotate(180), (0, height - 2))
-        return bar
+        self.ax.set_xlim(0, len(sound) / sample_rate)
+        self.canvas.draw()
+        self.bg = self.canvas.copy_from_bbox(self.ax.bbox)
 
-    def _generate_waveform_image(self):
-        """ Returns the full waveform image """
-        im = Image.new('RGB', (round(self.duration / 128), 128), '#f5f5f5')
-        for index, value in enumerate(self.peaks, start=0):
-            column = index * 8 + 2
-            upper_endpoint = 64 - value
-            im.paste(self._get_bar_image((4, value * 2), '#424242'), (column, upper_endpoint))
-
-        return im
-
-    def get_image(self):
-        return self.image
+    def destroy(self):
+        return super().destroy()
