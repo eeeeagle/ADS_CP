@@ -9,15 +9,10 @@ from tkinter import Button, Label, Frame, DoubleVar, IntVar
 
 
 class Sound:
-    solo_pressed = False
     solo_id = -1
-
-    mute_pressed = False
-    mute_id = -1
-
     _id = 0
 
-    def __init__(self, settings: Frame, filename: str):
+    def __init__(self, master: Frame, filename: str):
         # VARIABLES
         self._audio_track_list = AudioSegment.from_file(filename, filename.split('.')[-1]).split_to_mono()
 
@@ -26,9 +21,7 @@ class Sound:
 
         self._is_close = False
         self._is_hide = False
-
         self._is_mute = False
-        self._is_solo = False
 
         self._image_list = list[PhotoImage]()
 
@@ -36,7 +29,7 @@ class Sound:
         Sound._id += 1
 
         # ROOT
-        self._root = Frame(settings, borderwidth=1, relief="solid")
+        self._root = Frame(master)
         self.settings_frame = Frame(self._root, borderwidth=1, relief="solid")
         self.waveform_frame = Frame(self._root, borderwidth=1, relief="solid")
 
@@ -82,23 +75,28 @@ class Sound:
         self._image_list = list[PhotoImage]()
         self._label_list = list[Label]()
 
-        name_frame = Frame(self.waveform_frame, borderwidth=1, relief="solid")
-
+        name_frame = Frame(self.waveform_frame)
         self._name_label = Label(name_frame, text=filename, justify="left", anchor="w")
-        self.image_frame = Frame(self.waveform_frame, borderwidth=1, relief="solid")
+
+        self.image_frame = Frame(self.waveform_frame)
 
         self._name_label.grid(sticky="nsew")
-        self.image_frame.grid(row=1, sticky="nsew")
+        self.update_image_list(self._audio_track_list)
+
+        name_frame.grid_rowconfigure(0, weight=1)
+        name_frame.grid_columnconfigure(0, weight=1)
 
         name_frame.grid(row=0, sticky="nsew")
+        self.image_frame.grid(row=1, sticky="nsew")
 
-        self.update_image_list(self._audio_track_list)
+        self.waveform_frame.grid_rowconfigure(0, weight=1)
+        self.waveform_frame.grid_rowconfigure(1, weight=1)
 
         # PACK ROOT
 
         self.settings_frame.pack(fill="y", side="left")
-        self.waveform_frame.pack(fill="both", side="left", expand=True)
-        self._root.grid(row=self.ID, sticky="nsew")
+        self.waveform_frame.pack(fill="both", side="left")
+        self._root.grid(row=self.ID, sticky="nsew", padx=2, pady=2)
 
     def update_image_list(self, sound_list: list[AudioSegment]):
         self._image_list.clear()
@@ -106,10 +104,11 @@ class Sound:
 
         waveform_list = [wf.Waveform(sound) for sound in sound_list]
         self._image_list = [PhotoImage(each.get_image()) for each in waveform_list]
-        self._label_list = [Label(self.image_frame, image=image, justify="left") for image in self._image_list]
+        self._label_list = [Label(self.image_frame, image=image, justify="left", borderwidth=1, relief="solid")
+                            for image in self._image_list]
 
         for label in self._label_list:
-            label.pack(side="top", anchor="w")
+            label.pack(side="top", anchor="w", expand=True)
 
     def _hide(self):
         if not self._is_hide:
@@ -118,7 +117,7 @@ class Sound:
             self.effects_button.grid_remove()
             self.gain_scale_frame.grid_remove()
             self.pan_scale_frame.grid_remove()
-            self.image_frame.pack_forget()
+            self.image_frame.grid_remove()
             self.hide_button.configure(text="Показать")
             self._is_hide = True
         else:
@@ -138,10 +137,11 @@ class Sound:
             self._is_close = True
 
     def _mute(self):
-        self.set_mute(not self._is_mute)
+        self.set_solo(not self.is_solo())
+        self.set_mute(not self._mute)
 
     def _solo(self):
-        self.set_solo(not self._is_solo)
+        self.set_solo(not self.is_solo())
 
     def _effects(self):
         print(self.ID, end=": effects")
@@ -153,7 +153,7 @@ class Sound:
         return self._is_mute
 
     def is_solo(self):
-        return self._is_solo
+        return self.solo_id == self.ID
 
     def is_hide(self):
         return self._is_hide
@@ -168,28 +168,27 @@ class Sound:
 
     def set_mute(self, state: bool):
         if state:
-            self.mute_button.configure(relief="sunken")
             self._is_mute = True
+            self.mute_button.configure(relief="sunken")
         else:
-            self.mute_button.configure(relief="raised")
             self._is_mute = False
+            self.mute_button.configure(relief="raised")
 
     def set_solo(self, state: bool):
         if state:
             Sound.solo_id = self.ID
             self.solo_button.configure(relief="sunken")
-            self._is_mute = True
-            self.set_mute(False)
         else:
             Sound.solo_id = -1
             self.solo_button.configure(relief="raised")
-            self._is_solo = False
 
     def solo_tracking(self):
-        if 0 <= Sound.solo_id != self.ID:
-            self.set_mute(True)
-        else:
-            self.set_mute(False)
+        if Sound.solo_id >= 0:
+            if not self.is_solo():
+                self.set_mute(True)
+                return
+
+        self.set_mute(False)
 
     def _msg_gain(self):
         return "Усиление: " + str(self._gain.get()) + " дБ"

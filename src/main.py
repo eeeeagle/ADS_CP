@@ -66,7 +66,7 @@ class MainApp:
 
         """ BASE FRAMES """
         toolbar = Frame(master, borderwidth=1, relief="ridge")
-        sound_frame = ScrolledFrame(master, background=BG_COLOR, scrollbars="both")
+        sound_frame = ScrolledFrame(master, borderwidth=0, scrollbars="both")
         status_bar = Frame(master, borderwidth=1, relief="ridge")
 
         toolbar.pack(side="top", padx=2, pady=2, fill="x")
@@ -111,7 +111,7 @@ class MainApp:
         """ SOUND FRAME """
         sound_frame.bind_arrow_keys(master)
         sound_frame.bind_scroll_wheel(master)
-        self.sound_inner_frame = sound_frame.display_widget(Frame, fit_width=True)
+        self.sound_inner_frame = sound_frame.display_widget(Frame)
 
         """ STATUS BAR FRAME"""
         self._status_bar_label = Label(status_bar, textvariable=self._status)
@@ -133,14 +133,16 @@ class MainApp:
             for sound in self._sound_list:
                 if sound.is_close():
                     self._sound_list.remove(sound)
-            sleep(1)
+            sleep(0.1)
 
     def _solo_tracking(self):
+        current = Sound.solo_id
         while not self._on_exit:
-            if Sound.solo_id >= 0:
+            if current != Sound.solo_id:
+                current = Sound.solo_id
                 for sound in self._sound_list:
                     sound.solo_tracking()
-            sleep(1)
+            sleep(0.1)
 
     def _msg_volume(self):
         return "Громоксть воспроизведения: " + str(self._volume.get()) + " дБ"
@@ -207,8 +209,9 @@ if __name__ == "__main__":
     root = Tk()
     root.iconbitmap(default="icon.ico")
     root.title("Аудио редактор")
-    root.geometry(str(int(SCREEN_WIDTH * 0.7)) + "x" + str(int(SCREEN_HEIGHT * 0.7)) +
-                  "+" + str(int(SCREEN_WIDTH * 0.15)) + "+" + str(int(SCREEN_HEIGHT * 0.15)))
+    root.state('zoomed')
+    #root.geometry(str(int(SCREEN_WIDTH * 0.7)) + "x" + str(int(SCREEN_HEIGHT * 0.7)) +
+     #             "+" + str(int(SCREEN_WIDTH * 0.15)) + "+" + str(int(SCREEN_HEIGHT * 0.15)))
 
     root.protocol("WM_DELETE_WINDOW", on_exit)
 
