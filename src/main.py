@@ -10,7 +10,6 @@ from ctypes import *
 from entrywindow import change_value
 from tkscrolledframe import ScrolledFrame
 from sound import Sound
-
 from time import sleep
 
 
@@ -31,13 +30,6 @@ def overlay_sounds(sound_list: list[AudioSegment], samplerate: int):
 
 
 class MainApp:
-    _sound_list = list[Sound]()
-    _status: StringVar
-    _volume: IntVar
-    _samplerate: IntVar
-    _active_thread = list()
-    _on_exit = False
-
     def __init__(self, master: Tk):
         """MASTER = base object"""
 
@@ -45,6 +37,10 @@ class MainApp:
         self._volume = IntVar(value=0)
         self._samplerate = IntVar(value=SAMPLERATE_LIST[5])
         self._status = StringVar(value="")
+        self._sound_list = list[Sound]()
+        self._active_thread = list()
+        self._on_exit = False
+        self._on_pause = False
 
         """ MAIN MENU """
         menu = Menu(master)
@@ -100,7 +96,7 @@ class MainApp:
         volume_scale.pack(padx=2, pady=2)
         volume_scale.bind("<Button-2>", func=lambda e: self._volume.set(value=0))
         volume_scale.bind("<Double-Button-1>", lambda e: change_value("Громкость", self._volume, -50, 0))
-        ToolTip(volume_scale, msg=self._msg_volume, delay=0)
+        ToolTip(volume_scale, msg=self._msg_volume(), delay=0)
 
         """ SAMPLERATE FRAME"""
         samplerate_combobox = Combobox(samplerate_frame, values=SAMPLERATE_LIST,
@@ -124,15 +120,13 @@ class MainApp:
         thread_track_solo = threading.Thread(target=self._solo_tracking, args=())
         thread_track_solo.start()
 
-    def __del__(self):
-        sa.stop_all()
-        self._on_exit = True
-
     def _closed_tracking(self):
         while not self._on_exit:
             for sound in self._sound_list:
                 if sound.is_close():
                     self._sound_list.remove(sound)
+                    del sound
+                    self._regrid()
             sleep(0.1)
 
     def _solo_tracking(self):
@@ -144,6 +138,12 @@ class MainApp:
                     sound.solo_tracking()
             sleep(0.1)
 
+    def _wait_play(self, play_object: sa.PlayObject):
+        Sound.delete_allowed = False
+        play_object.wait_done()
+        self._status.set("Остановленно")
+        Sound.delete_allowed = True
+
     def _msg_volume(self):
         return "Громоксть воспроизведения: " + str(self._volume.get()) + " дБ"
 
@@ -154,6 +154,8 @@ class MainApp:
             for sound in filepath:
                 self._sound_list.append(Sound(self.sound_inner_frame, sound))
 
+            self._regrid()
+
     def _save_file(self):
         filepath = filedialog.asksaveasfilename(title="Экспорт аудиоданных", defaultextension=EXTENSION_LIST[1][1],
                                                 initialfile="Song", filetypes=EXTENSION_LIST[1:])
@@ -163,31 +165,34 @@ class MainApp:
             sound.export(filepath, format=os.path.splitext(filepath)[1][1:])
 
     def _play_sound(self):
-        def wait_play():
-            play_object.wait_done()
-            self._status.set("Остановленно")
-            self._active_thread.remove(thread)
-
-        sa.stop_all()
-
-        sound_list = self._get_active_sound()
-        if len(sound_list):
-            sound = overlay_sounds(sound_list, self._samplerate.get()) + self._volume.get()
-            play_object = sa.play_buffer(sound.raw_data, num_channels=sound.channels,
-                                         bytes_per_sample=sound.sample_width, sample_rate=sound.frame_rate)
+        if self._on_pause:
+            self._on_pause = False
             self._status.set("Играет")
 
-            thread = threading.Thread(target=wait_play, args=())
-            thread.start()
-            self._active_thread.append(thread)
         else:
-            messagebox.showinfo(title="Воспроизведение невозможно", message="Нет аудио для воспроизведения")
+            sa.stop_all()
+            sound_list = self._get_active_sound()
+
+            if len(sound_list):
+                sound = overlay_sounds(sound_list, self._samplerate.get()) + self._volume.get()
+                play_object = sa.play_buffer(audio_data=sound.raw_data, num_channels=sound.channels,
+                                             bytes_per_sample=sound.sample_width, sample_rate=sound.frame_rate)
+                self._status.set("Играет")
+
+                thread = threading.Thread(target=self._wait_play, args=(play_object,))
+                thread.start()
+                self._active_thread.append(thread)
+            else:
+                messagebox.showinfo(title="Воспроизведение невозможно", message="Нет аудио для воспроизведения")
 
     def _record_sound(self):
-        print("Record")
+        self._status.set("Запись")
+
+        self._status.set("")
 
     def _pause_sound(self):
-        print("Pause")
+        self._on_pause = True
+        self._status.set("Пауза")
 
     def _get_active_sound(self):
         sound_list = list()
@@ -195,24 +200,28 @@ class MainApp:
             sound_list.append(sound.get_sound())
         return sound_list
 
+    def _regrid(self):
+        for i in range(0, len(self._sound_list)):
+            self._sound_list[i].grid(i)
+
     def is_empty(self):
         return len(self._sound_list) == 0
+
+    def close(self):
+        self._on_exit = True
+        sa.stop_all()
 
 
 if __name__ == "__main__":
     def on_exit():
         if app.is_empty() or messagebox.askokcancel("Выход", "Вы действительно хотите выйти?"):
-            sa.stop_all()
-            sleep(1)
+            app.close()
             root.destroy()
 
     root = Tk()
     root.iconbitmap(default="icon.ico")
     root.title("Аудио редактор")
     root.state('zoomed')
-    #root.geometry(str(int(SCREEN_WIDTH * 0.7)) + "x" + str(int(SCREEN_HEIGHT * 0.7)) +
-     #             "+" + str(int(SCREEN_WIDTH * 0.15)) + "+" + str(int(SCREEN_HEIGHT * 0.15)))
-
     root.protocol("WM_DELETE_WINDOW", on_exit)
 
     app = MainApp(root)
