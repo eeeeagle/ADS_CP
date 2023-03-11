@@ -79,6 +79,7 @@ def apply_normalize(segment: AudioSegment, selected_list: list[bool]):
 
 def apply_effect(segment: AudioSegment):
     is_working = True
+    flag = False
 
     def close_window():
         nonlocal is_working
@@ -87,11 +88,12 @@ def apply_effect(segment: AudioSegment):
         window.destroy()
 
     def effect_select():
+        nonlocal flag
         selected_index = listbox.curselection()[0]
         selected_channels = [channel.get() for channel in enabled_list]
         window.grab_release()
         if selected_index == 0:
-            apply_normalize(segment, selected_channels)
+            flag = apply_normalize(segment, selected_channels)
         window.grab_set()
 
     enabled_list = list()
@@ -124,4 +126,4 @@ def apply_effect(segment: AudioSegment):
         window.update_idletasks()
         window.update()
 
-    return segment
+    return segment, flag
