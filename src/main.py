@@ -2,24 +2,23 @@ import os.path
 import simpleaudio as sa
 import threading
 
-from tkinter.ttk import Label, LabelFrame, Scale, Combobox
-from tkinter import Tk, IntVar, StringVar, Frame, Button, Menu, messagebox, filedialog
+from tkinter.ttk import Label, LabelFrame, Scale, Combobox, Progressbar
+from tkinter import IntVar, StringVar, Frame, Button, Menu, messagebox, filedialog, Misc, Toplevel
 from tktooltip import ToolTip
 from pydub import AudioSegment
-from ctypes import *
-from entrywindow import change_value
+from value_window import change_value
 from tkscrolledframe import ScrolledFrame
 from sound import Sound
 from time import sleep
 
-
-SCREEN_WIDTH = windll.user32.GetSystemMetrics(0)
-SCREEN_HEIGHT = windll.user32.GetSystemMetrics(1)
+BG_COLOR = "#3a3a58"
 SAMPLERATE_LIST = [8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000]
 EXTENSION_LIST = [("Все поддерживаемые форматы", ".wav .flac .m4a .mp3 .ogg"),
-                  ("Microsoft Wave", ".wav"), ("Free Lossless Audio Codec", ".flac"), ("Apple Lossless", ".m4a"),
-                  ("MPEG Layer 3", ".mp3"), ("Ogg Vorbis Audio", ".ogg")]
-BG_COLOR = "#3a3a58"
+                  ("Microsoft Wave", ".wav"),
+                  ("Free Lossless Audio Codec", ".flac"),
+                  ("Apple Lossless", ".m4a"),
+                  ("MPEG Layer 3", ".mp3"),
+                  ("Ogg Vorbis Audio", ".ogg")]
 
 
 def overlay_sounds(sound_list: list[AudioSegment], samplerate: int):
@@ -29,22 +28,27 @@ def overlay_sounds(sound_list: list[AudioSegment], samplerate: int):
     return output_sound
 
 
-class MainApp:
-    def __init__(self, master: Tk):
-        """MASTER = base object"""
+class MainApp(Frame):
+    def __init__(self, master: Misc = None,):
+        super().__init__(master)
+
+        """ MASTER """
+        self.master.iconbitmap(default="icon.ico")
+        self.master.title("Аудио редактор")
+        self.master.state('zoomed')
+        self.master.protocol("WM_DELETE_WINDOW", self.close)
 
         """ VARIABLES """
         self._volume = IntVar(value=0)
         self._samplerate = IntVar(value=SAMPLERATE_LIST[5])
         self._status = StringVar(value="")
         self._sound_list = list[Sound]()
-        self._active_thread = list()
         self._on_exit = False
         self._on_pause = False
 
         """ MAIN MENU """
         menu = Menu(master)
-        master.config(menu=menu)
+        self.master.config(menu=menu)
 
         file_menu = Menu(menu, tearoff=0)
         help_menu = Menu(menu, tearoff=0)
@@ -52,7 +56,7 @@ class MainApp:
         file_menu.add_command(label="Импорт файлов", command=self._open_files)
         file_menu.add_command(label="Экспорт", command=self._save_file)
         file_menu.add_separator()
-        file_menu.add_command(label="Выход", command=master.destroy)
+        file_menu.add_command(label="Выход", command=self.close)
 
         help_menu.add_command(label="Помощь")
         help_menu.add_command(label="О программе")
@@ -61,9 +65,9 @@ class MainApp:
         menu.add_cascade(label="Справка", menu=help_menu)
 
         """ BASE FRAMES """
-        toolbar = Frame(master, borderwidth=1, relief="ridge")
-        sound_frame = ScrolledFrame(master, borderwidth=0, scrollbars="both")
-        status_bar = Frame(master, borderwidth=1, relief="ridge")
+        toolbar = Frame(self.master, borderwidth=1, relief="ridge")
+        sound_frame = ScrolledFrame(self.master, borderwidth=0, scrollbars="both")
+        status_bar = Frame(self.master, borderwidth=1, relief="ridge")
 
         toolbar.pack(side="top", padx=2, pady=2, fill="x")
         sound_frame.pack(side="top", fill="both", expand=True)
@@ -96,7 +100,7 @@ class MainApp:
         volume_scale.pack(padx=2, pady=2)
         volume_scale.bind("<Button-2>", func=lambda e: self._volume.set(value=0))
         volume_scale.bind("<Double-Button-1>", lambda e: change_value("Громкость", self._volume, -50, 0))
-        ToolTip(volume_scale, msg=self._msg_volume, delay=0)
+        ToolTip(volume_scale, msg=self._msg_volume, delay=0, x_offset=-50)
 
         """ SAMPLERATE FRAME"""
         samplerate_combobox = Combobox(samplerate_frame, values=SAMPLERATE_LIST,
@@ -105,8 +109,8 @@ class MainApp:
         samplerate_combobox.pack(fill="both", padx=2, pady=2)
 
         """ SOUND FRAME """
-        sound_frame.bind_arrow_keys(master)
-        sound_frame.bind_scroll_wheel(master)
+        sound_frame.bind_arrow_keys(self.master)
+        sound_frame.bind_scroll_wheel(self.master)
         self.sound_inner_frame = sound_frame.display_widget(Frame)
 
         """ STATUS BAR FRAME"""
@@ -151,10 +155,42 @@ class MainApp:
         filepath = filedialog.askopenfilenames(title="Выберите один или несколько файлов", filetypes=EXTENSION_LIST)
 
         if filepath != "":
+            def progress():
+                window = Toplevel()
+                window.wm_attributes('-disabled', True)
+                window.wm_attributes('-toolwindow', True)
+                window.title("Чтение")
+                window.geometry("250x100")
+                window.resizable(False, False)
+                window.grab_set()
+
+                label = Label(window, text="Идёт загрузка", anchor="n", justify="center")
+                progressbar = Progressbar(window, mode="determinate", variable=common_value, maximum=len(filepath))
+
+                label.pack(side="top", fill="both", padx=2, pady=2)
+                progressbar.pack(side="top", fill="both", padx=2, pady=2)
+
+                while flag:
+                    window.update()
+                    window.update_idletasks()
+
+                label['text'] = "Загруженно"
+                sleep(1)
+
+                window.grab_release()
+                window.destroy()
+
+            common_value = IntVar(value=0)
+            thread = threading.Thread(target=progress, args=())
+            thread.start()
+
+            flag = True
             for sound in filepath:
                 self._sound_list.append(Sound(self.sound_inner_frame, sound))
-
+                self.sound_inner_frame.update()
+                common_value.set(common_value.get() + 1)
             self._regrid()
+            flag = False
 
     def _save_file(self):
         filepath = filedialog.asksaveasfilename(title="Экспорт аудиоданных", defaultextension=EXTENSION_LIST[1][1],
@@ -181,7 +217,6 @@ class MainApp:
 
                 thread = threading.Thread(target=self._wait_play, args=(play_object,))
                 thread.start()
-                self._active_thread.append(thread)
             else:
                 messagebox.showinfo(title="Воспроизведение невозможно", message="Нет аудио для воспроизведения")
 
@@ -204,25 +239,16 @@ class MainApp:
         for i in range(0, len(self._sound_list)):
             self._sound_list[i].grid(i)
 
-    def is_empty(self):
-        return len(self._sound_list) == 0
-
     def close(self):
-        self._on_exit = True
-        sa.stop_all()
+        if len(self._sound_list) == 0 or messagebox.askokcancel("Выход", "Вы действительно хотите выйти?"):
+            self.master.destroy()
+            sa.stop_all()
+            self._on_exit = True
+
+    def destroy(self):
+        return super().destroy()
 
 
 if __name__ == "__main__":
-    def on_exit():
-        if app.is_empty() or messagebox.askokcancel("Выход", "Вы действительно хотите выйти?"):
-            app.close()
-            root.destroy()
-
-    root = Tk()
-    root.iconbitmap(default="icon.ico")
-    root.title("Аудио редактор")
-    root.state('zoomed')
-    root.protocol("WM_DELETE_WINDOW", on_exit)
-
-    app = MainApp(root)
-    root.mainloop()
+    app = MainApp()
+    app.mainloop()
