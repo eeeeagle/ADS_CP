@@ -1,11 +1,12 @@
 import numpy as np
 
-from waveform import SampleWaveform
+from sample_waveform import SampleWaveform
 from tktooltip import ToolTip
-from entrywindow import change_value
+from value_window import change_value
 from pydub import AudioSegment
 from tkinter.ttk import Frame, Scale, LabelFrame
 from tkinter import Button, Label, Frame, DoubleVar, IntVar
+from effects_window import apply_effect
 
 
 class Sound:
@@ -15,11 +16,10 @@ class Sound:
 
     def __init__(self, master: Frame, filename: str):
         # VARIABLES
-        sound = AudioSegment.from_file(filename, filename.split('.')[-1])
-        self._audio_track_list = sound.split_to_mono()
-        self._sample_width = sound.sample_width
-        self._frame_rate = sound.frame_rate
-        self._channels = sound.channels
+        self._sound = AudioSegment.from_file(filename, filename.split('.')[-1])
+        self._sample_width = self._sound.sample_width
+        self._frame_rate = self._sound.frame_rate
+        self._channels = self._sound.channels
 
         self._gain = DoubleVar(value=0.0)
         self._pan = IntVar(value=0)
@@ -87,6 +87,11 @@ class Sound:
         self._waveform_list_frame = Frame(waveform_frame)
 
         self._name_label.grid(sticky="nsew")
+
+        for i in range(0, self._channels):
+            waveform = SampleWaveform(self._waveform_list_frame, len(self._sound))
+            waveform.pack(side="top", fill="both", expand=True)
+            self._waveform_list.append(waveform)
         self._update_waveform()
 
         # WAVEFORM GRID
@@ -106,17 +111,11 @@ class Sound:
         waveform_frame.pack(fill="both", side="left")
 
     def _update_waveform(self):
-        for waveform in self._waveform_list:
-            waveform.destroy()
-        self._waveform_list.clear()
-
-        for sound in self._audio_track_list:
-            samples = sound.get_array_of_samples()
-            arr = np.array(samples).astype(np.float32)
-
-            waveform = SampleWaveform(self._waveform_list_frame, arr, self._frame_rate)
-            waveform.pack(side="top", fill="both", expand=True)
-            self._waveform_list.append(waveform)
+        mono_segments = self._sound.split_to_mono()
+        for i in range(0, self._channels):
+            samples = mono_segments[i].get_array_of_samples()
+            samples_array = np.array(samples).astype(np.float32)
+            self._waveform_list[i].update_waveform(sound=samples_array, sample_rate=self._frame_rate)
 
     def _hide(self):
         if not self._is_hide:
@@ -144,14 +143,25 @@ class Sound:
             self._is_close = True
 
     def _mute(self):
-        self.set_solo(not self.is_solo())
-        self.set_mute(not self._mute)
+        self.set_mute(not self.is_mute())
 
     def _solo(self):
         self.set_solo(not self.is_solo())
 
-    def _effects(self):
-        print(self.ID, end=": effects\n")
+    def _effects(self, start: int = None, end: int = None):
+        segment = AudioSegment.empty()
+
+        if start is None and end is None:
+            segment = self._sound
+        else:
+            if start is None:
+                segment = self._sound[:end]
+            if end is None:
+                segment = self._sound[start:]
+
+        new_segment, flag = apply_effect(segment)
+        if flag:
+            self.sound = self._sound[:start] + new_segment + self._sound[end:]
 
     def is_close(self):
         return self._is_close
@@ -167,16 +177,13 @@ class Sound:
 
     def get_sound(self):
         if not self.is_mute():
-            audio = AudioSegment.from_mono_audiosegments(*self._audio_track_list)
-            audio = audio.pan(self._pan.get() / 100)
-            return audio + self._gain.get()
+            return self._sound.pan(self._pan.get() / 100) + self._gain.get()
         return AudioSegment.empty()
 
     def set_mute(self, state: bool):
         self._is_mute = state
         if state:
             self._mute_button.configure(relief="sunken")
-            self._waveform_list_frame.config()
         else:
             self._mute_button.configure(relief="raised")
 
