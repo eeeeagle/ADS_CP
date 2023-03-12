@@ -2,8 +2,8 @@ import os.path
 import simpleaudio as sa
 import threading
 
-from tkinter.ttk import Label, LabelFrame, Scale, Combobox, Progressbar
-from tkinter import IntVar, StringVar, Frame, Button, Menu, messagebox, filedialog, Misc, Toplevel
+from tkinter.ttk import Label, LabelFrame, Scale, Combobox, Progressbar, Frame, Button
+from tkinter import IntVar, StringVar, Menu, messagebox, filedialog, Misc, Toplevel
 from tktooltip import ToolTip
 from pydub import AudioSegment
 from value_window import change_value
@@ -84,14 +84,10 @@ class MainApp(Frame):
 
         """ PLAY FRAME """
         play_button = Button(play_frame, text="Играть", command=self._play_sound)
-        pause_button = Button(play_frame, text="Пауза", command=self._pause_sound)
         stop_button = Button(play_frame, text="Стоп", command=sa.stop_all)
-        record_button = Button(play_frame, text="Запись", command=self._record_sound)
 
         play_button.pack(side="left", fill="both", padx=2, pady=2)
-        pause_button.pack(side="left", fill="both", padx=2, pady=2)
         stop_button.pack(side="left", fill="both", padx=2, pady=2)
-        record_button.pack(side="left", fill="both", padx=2, pady=2)
 
         """ VOLUME FRAME"""
         volume_scale = Scale(volume_frame, orient="horizontal", length=100, from_=-50, to=0,
@@ -219,15 +215,6 @@ class MainApp(Frame):
                 thread.start()
             else:
                 messagebox.showinfo(title="Воспроизведение невозможно", message="Нет аудио для воспроизведения")
-
-    def _record_sound(self):
-        self._status.set("Запись")
-
-        self._status.set("")
-
-    def _pause_sound(self):
-        self._on_pause = True
-        self._status.set("Пауза")
 
     def _get_active_sound(self):
         sound_list = list()
