@@ -1,7 +1,8 @@
-from tkinter.ttk import Checkbutton, Button, Frame, Label, LabelFrame, Scale
 from tkinter import Toplevel, Listbox, BooleanVar, IntVar, DoubleVar, Misc, StringVar
+from tkinter.ttk import Checkbutton, Button, Frame, Label, LabelFrame, Scale
 from pydub import AudioSegment, effects
 from pydub.playback import play
+
 from value_window import change_value
 
 
@@ -15,7 +16,8 @@ EFFECTS_LIST: list[str] = ["Нормализация",
                            "Усиление",
                            "Фейд-подъём",
                            "Фейд-спад",
-                           "Обрезка тишины"]
+                           "Обрезка тишины",
+                           "Удалить сегмент"]
 
 
 class Setting(LabelFrame):
@@ -162,6 +164,17 @@ class Pan(EffectFrame):
         return effects.pan(segment, pan_amount=self.pan.get_value() / 100)
 
 
+class DeleteSegment(EffectFrame):
+    def __init__(self, master: Misc = None,):
+        super().__init__(master)
+
+        label = Label(self, text="Нет дополнительных настроек", justify="center")
+        label.pack(side="top", fill="both", padx=2, pady=2)
+
+    def set_effect(self, segment: AudioSegment):
+        return AudioSegment.empty()
+
+
 class Gain(EffectFrame):
     def __init__(self, master: Misc = None,):
         super().__init__(master)
@@ -254,6 +267,8 @@ def apply_effect(segment: AudioSegment):
             effect_settings = FadeOut(settings_frame)
         if selected_index == 10:
             effect_settings = SilenceStrip(settings_frame)
+        if selected_index == 11:
+            effect_settings = DeleteSegment(settings_frame)
 
         effect_settings.grid(row=0, column=0, columnspan=3, padx=2, pady=2, sticky="nsew")
 
