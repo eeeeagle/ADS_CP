@@ -12,7 +12,6 @@ EFFECTS_LIST: list[str] = ["Нормализация",
                            "Фильтр низких частот",
                            "Фильтр высоких частот",
                            "Инвертирование дорожки",
-                           "Баланс",
                            "Усиление",
                            "Фейд-подъём",
                            "Фейд-спад",
@@ -248,14 +247,12 @@ def apply_effect(segment: AudioSegment):
         if selected_index == 6:
             effect_settings = Reverse(settings_frame)
         if selected_index == 7:
-            effect_settings = Pan(settings_frame)
-        if selected_index == 8:
             effect_settings = Gain(settings_frame)
-        if selected_index == 9:
+        if selected_index == 8:
             effect_settings = FadeIn(settings_frame)
-        if selected_index == 10:
+        if selected_index == 9:
             effect_settings = FadeOut(settings_frame)
-        if selected_index == 11:
+        if selected_index == 10:
             effect_settings = SilenceStrip(settings_frame)
 
         effect_settings.grid(row=0, column=0, columnspan=3, padx=2, pady=2, sticky="nsew")
