@@ -149,19 +149,15 @@ class Sound:
         self.set_solo(not self.is_solo())
 
     def _effects(self, start: int = None, end: int = None):
-        segment = AudioSegment.empty()
+        if start is None:
+            start = 0
+        if end is None:
+            end = len(self._sound)
 
-        if start is None and end is None:
-            segment = self._sound
-        else:
-            if start is None:
-                segment = self._sound[:end]
-            if end is None:
-                segment = self._sound[start:]
-
-        new_segment, flag = apply_effect(segment)
+        new_segment, flag = apply_effect(self._sound[start:end])
         if flag:
-            self.sound = self._sound[:start] + new_segment + self._sound[end:]
+            self._sound = self._sound[0:start] + new_segment + self._sound[end:len(self._sound)]
+            self._update_waveform()
 
     def is_close(self):
         return self._is_close
@@ -171,9 +167,6 @@ class Sound:
 
     def is_solo(self):
         return self.solo_id == self.ID
-
-    def is_hide(self):
-        return self._is_hide
 
     def get_sound(self):
         if not self.is_mute():
