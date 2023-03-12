@@ -1,19 +1,18 @@
-import tkinter as tk
-import librosa.display
-
+from tkinter import Misc, Frame
+from librosa.display import waveshow
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from numpy import ndarray
 
 
-class SampleWaveform(tk.Frame):
+class SampleWaveform(Frame):
     _SCALE_X = 20
     _SCALE_Y = 2
 
-    def __init__(self, master: tk.Misc, duration: int):
+    def __init__(self, master: Misc, duration: int):
         super().__init__(master)
 
-        self.canvas_frame = tk.Frame(self.master)
+        self.canvas_frame = Frame(self.master)
         self.canvas_frame.pack(fill="both", expand=True)
 
         self.fig = Figure(figsize=(duration / 1000 / self._SCALE_X, self._SCALE_Y), dpi=100)
@@ -29,7 +28,7 @@ class SampleWaveform(tk.Frame):
     def update_waveform(self, sound: ndarray, sample_rate: int):
         self.ax.clear()
 
-        librosa.display.waveshow(sound, sr=sample_rate, ax=self.ax, axis="s", lw=0.5, zorder=1)
+        waveshow(sound, sr=sample_rate, ax=self.ax, axis="s", lw=0.5, zorder=1)
 
         self.ax.set_xlim(0, len(sound) / sample_rate)
         self.canvas.draw()
