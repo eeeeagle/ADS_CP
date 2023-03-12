@@ -2,14 +2,19 @@ import os.path
 import simpleaudio as sa
 import threading
 
-from tkinter.ttk import Label, LabelFrame, Scale, Combobox, Progressbar, Frame, Button
-from tkinter import IntVar, StringVar, Menu, messagebox, filedialog, Misc, Toplevel
-from tktooltip import ToolTip
+from time import sleep
 from pydub import AudioSegment
+from tkinter import IntVar, StringVar, Menu, Misc, Toplevel, PhotoImage
+from tkinter.ttk import Label, LabelFrame, Scale, Combobox, Progressbar, Frame, Button
+from tkinter.messagebox import askokcancel, showinfo
+from tkinter.filedialog import askopenfilenames, asksaveasfilename
+from tktooltip import ToolTip
+
+from sound import Sound
 from value_window import change_value
 from tkscrolledframe import ScrolledFrame
-from sound import Sound
-from time import sleep
+
+
 
 BG_COLOR = "#3a3a58"
 SAMPLERATE_LIST = [8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000]
@@ -33,7 +38,7 @@ class MainApp(Frame):
         super().__init__(master)
 
         """ MASTER """
-        self.master.iconbitmap(default="icon.ico")
+        self.master.iconbitmap(default="icon/app.ico")
         self.master.title("Аудио редактор")
         self.master.state('zoomed')
         self.master.protocol("WM_DELETE_WINDOW", self.close)
@@ -65,9 +70,9 @@ class MainApp(Frame):
         menu.add_cascade(label="Справка", menu=help_menu)
 
         """ BASE FRAMES """
-        toolbar = Frame(self.master, borderwidth=1, relief="ridge")
+        toolbar = Frame(self.master)
         sound_frame = ScrolledFrame(self.master, borderwidth=0, scrollbars="both")
-        status_bar = Frame(self.master, borderwidth=1, relief="ridge")
+        status_bar = Frame(self.master)
 
         toolbar.pack(side="top", padx=2, pady=2, fill="x")
         sound_frame.pack(side="top", fill="both", expand=True)
@@ -83,11 +88,14 @@ class MainApp(Frame):
         volume_frame.pack(side="right", fill="y", padx=2)
 
         """ PLAY FRAME """
-        play_button = Button(play_frame, text="Играть", command=self._play_sound)
-        stop_button = Button(play_frame, text="Стоп", command=sa.stop_all)
+        self.PLAY_IMAGE = PhotoImage(file="icon/play.png")
+        self.STOP_IMAGE = PhotoImage(file="icon/stop.png")
 
-        play_button.pack(side="left", fill="both", padx=2, pady=2)
-        stop_button.pack(side="left", fill="both", padx=2, pady=2)
+        play_button = Button(play_frame, image=self.PLAY_IMAGE, command=self._play_sound)
+        stop_button = Button(play_frame, image=self.STOP_IMAGE, command=sa.stop_all)
+
+        play_button.pack(side="left", padx=2, pady=2)
+        stop_button.pack(side="left", padx=2, pady=2)
 
         """ VOLUME FRAME"""
         volume_scale = Scale(volume_frame, orient="horizontal", length=100, from_=-50, to=0,
@@ -105,7 +113,6 @@ class MainApp(Frame):
         samplerate_combobox.pack(fill="both", padx=2, pady=2)
 
         """ SOUND FRAME """
-        sound_frame.bind_arrow_keys(self.master)
         sound_frame.bind_scroll_wheel(self.master)
         self.sound_inner_frame = sound_frame.display_widget(Frame)
 
@@ -148,7 +155,7 @@ class MainApp(Frame):
         return "Громоксть воспроизведения: " + str(self._volume.get()) + " дБ"
 
     def _open_files(self):
-        filepath = filedialog.askopenfilenames(title="Выберите один или несколько файлов", filetypes=EXTENSION_LIST)
+        filepath = askopenfilenames(title="Выберите один или несколько файлов", filetypes=EXTENSION_LIST)
 
         if filepath != "":
             def progress():
@@ -189,8 +196,8 @@ class MainApp(Frame):
             flag = False
 
     def _save_file(self):
-        filepath = filedialog.asksaveasfilename(title="Экспорт аудиоданных", defaultextension=EXTENSION_LIST[1][1],
-                                                initialfile="Song", filetypes=EXTENSION_LIST[1:])
+        filepath = asksaveasfilename(title="Экспорт аудиоданных", defaultextension=EXTENSION_LIST[1][1],
+                                     initialfile="Song", filetypes=EXTENSION_LIST[1:])
         sound_list = [sound.get_sound() for sound in self._sound_list]
         if filepath != "":
             sound = overlay_sounds(sound_list, self._samplerate.get())
@@ -214,7 +221,7 @@ class MainApp(Frame):
                 thread = threading.Thread(target=self._wait_play, args=(play_object,))
                 thread.start()
             else:
-                messagebox.showinfo(title="Воспроизведение невозможно", message="Нет аудио для воспроизведения")
+                showinfo(title="Воспроизведение невозможно", message="Нет аудио для воспроизведения")
 
     def _get_active_sound(self):
         sound_list = list()
@@ -227,7 +234,7 @@ class MainApp(Frame):
             self._sound_list[i].grid(i)
 
     def close(self):
-        if len(self._sound_list) == 0 or messagebox.askokcancel("Выход", "Вы действительно хотите выйти?"):
+        if len(self._sound_list) == 0 or askokcancel("Выход", "Вы действительно хотите выйти?"):
             self.master.destroy()
             sa.stop_all()
             self._on_exit = True
