@@ -1,12 +1,14 @@
 import numpy as np
 
-from sample_waveform import SampleWaveform
-from tktooltip import ToolTip
-from value_window import change_value
 from pydub import AudioSegment
-from tkinter.ttk import Frame, Scale, LabelFrame
-from tkinter import Button, Label, Frame, DoubleVar, IntVar
+from tkinter import DoubleVar, IntVar, Button
+from tkinter.ttk import Scale, LabelFrame, Label, Frame, Spinbox
+from tkinter.messagebox import showerror
+from tktooltip import ToolTip
+
 from effects_window import apply_effect
+from sample_waveform import SampleWaveform
+from value_window import change_value
 
 
 class Sound:
@@ -24,6 +26,9 @@ class Sound:
         self._gain = DoubleVar(value=0.0)
         self._pan = IntVar(value=0)
 
+        self._start = IntVar(value=0)  # начало выделения
+        self._end = IntVar(value=len(self._sound))  # конец выделения
+
         self._is_close = False
         self._is_hide = False
         self._is_mute = False
@@ -39,11 +44,11 @@ class Sound:
         waveform_frame = Frame(self._root, borderwidth=1, relief="solid")
 
         # BUTTONS
-        close_button = Button(settings_frame, text="Закрыть", justify="center", command=self._close)
-        self._hide_button = Button(settings_frame, text="Скрыть", justify="center", command=self._hide)
-        self._mute_button = Button(settings_frame, text="Тихо", justify="center", command=self._mute)
-        self._solo_button = Button(settings_frame, text="Соло", justify="center", command=self._solo)
-        self._effects_button = Button(settings_frame, text="Эффекты", justify="center", command=self._effects)
+        close_button = Button(settings_frame, text="Закрыть", command=self._close)
+        self._hide_button = Button(settings_frame, text="Скрыть", command=self._hide)
+        self._mute_button = Button(settings_frame, text="Тихо", command=self._mute)
+        self._solo_button = Button(settings_frame, text="Соло", command=self._solo)
+        self._effects_button = Button(settings_frame, text="Эффекты", command=self._effects)
 
         # GAIN FRAME
         self._gain_scale_frame = LabelFrame(settings_frame, text="Усиление", labelanchor="n")
@@ -64,19 +69,28 @@ class Sound:
         self._pan_scale.bind("<Double-Button-1>", lambda e: change_value("Усиление", self._pan, -100, 100))
         ToolTip(self._pan_scale, msg=self._msg_pan)
 
-        # LABELS
-        #
-        # TO DO
-        #
+        # START FRAME
+        self._start_frame = LabelFrame(settings_frame, text="Начало (мс)", labelanchor="n")
+        self._start_spinbox = Spinbox(self._start_frame, from_=0, to=self._end.get(),
+                                      textvariable=self._start, increment=50)
+        self._start_spinbox.pack(side="top", fill="both", expand=True)
+
+        # END FRAME
+        self._end_frame = LabelFrame(settings_frame, text="Конец (мс)", labelanchor="n")
+        self._end_spinbox = Spinbox(self._end_frame, from_=0, to=self._end.get(),
+                                    textvariable=self._end, increment=50)
+        self._end_spinbox.pack(side="top", fill="both", expand=True)
 
         # SETTINGS GRID
         close_button.grid(row=0, column=0, padx=2, pady=2, sticky="we")
         self._hide_button.grid(row=0, column=1, padx=2, pady=2, sticky="we")
         self._mute_button.grid(row=1, column=0, padx=2, pady=2, sticky="we")
         self._solo_button.grid(row=1, column=1, padx=2, pady=2, sticky="we")
-        self._effects_button.grid(row=2, column=0, columnspan=2, padx=2, pady=2, sticky="we")
-        self._gain_scale_frame.grid(row=3, column=0, columnspan=2, padx=2, pady=2, sticky="nsew")
-        self._pan_scale_frame.grid(row=4, column=0, columnspan=2, padx=2, pady=2, sticky="nsew")
+        self._gain_scale_frame.grid(row=2, column=0, columnspan=2, padx=2, pady=2, sticky="we")
+        self._pan_scale_frame.grid(row=3, column=0, columnspan=2, padx=2, pady=2, sticky="we")
+        self._effects_button.grid(row=4, column=0, columnspan=2, padx=2, pady=2, sticky="we")
+        self._start_frame.grid(row=5, column=0, columnspan=2, padx=2, pady=2, sticky="we")
+        self._end_frame.grid(row=6, column=0, columnspan=2, padx=2, pady=2, sticky="we")
 
         settings_frame.grid_columnconfigure(0, weight=1)
         settings_frame.grid_columnconfigure(1, weight=1)
@@ -125,6 +139,8 @@ class Sound:
             self._gain_scale_frame.grid_remove()
             self._pan_scale_frame.grid_remove()
             self._waveform_list_frame.grid_remove()
+            self._start_frame.grid_remove()
+            self._end_frame.grid_remove()
             self._hide_button.configure(text="Показать")
             self._is_hide = True
         else:
@@ -134,6 +150,8 @@ class Sound:
             self._gain_scale_frame.grid()
             self._pan_scale_frame.grid()
             self._waveform_list_frame.grid()
+            self._start_frame.grid()
+            self._end_frame.grid()
             self._hide_button.configure(text="Скрыть")
             self._is_hide = False
 
@@ -148,16 +166,17 @@ class Sound:
     def _solo(self):
         self.set_solo(not self.is_solo())
 
-    def _effects(self, start: int = None, end: int = None):
-        if start is None:
-            start = 0
-        if end is None:
-            end = len(self._sound)
+    def _effects(self):
+        if self._end.get() <= self._start.get():
+            showerror(title="Ошибка", message="Начало отрезка (мс) больше или совпадает с концом отрезка")
+            return
 
-        new_segment, flag = apply_effect(self._sound[start:end])
+        new_segment, flag = apply_effect(self._sound[self._start.get():self._end.get()])
         if flag:
-            self._sound = self._sound[0:start] + new_segment + self._sound[end:len(self._sound)]
+            self._sound = self._sound[0:self._start.get()] + new_segment + self._sound[self._end.get():len(self._sound)]
             self._update_waveform()
+            self._start_spinbox["to"] = len(self._sound)
+            self._end_spinbox["to"] = len(self._sound)
 
     def is_close(self):
         return self._is_close
