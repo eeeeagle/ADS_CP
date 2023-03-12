@@ -1,7 +1,7 @@
 from tkinter import Misc, Frame
-from librosa.display import waveshow
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from librosa.display import waveshow
 from numpy import ndarray
 
 

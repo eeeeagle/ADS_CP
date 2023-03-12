@@ -1,5 +1,5 @@
-from tkinter.ttk import Entry
 from tkinter import Button, Toplevel, Variable
+from tkinter.ttk import Entry
 from tkinter.messagebox import showerror
 
 
