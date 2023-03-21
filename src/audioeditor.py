@@ -9,31 +9,22 @@ from tkinter.ttk import Label, LabelFrame, Scale, Combobox, Progressbar, Frame, 
 from tkinter.messagebox import askokcancel, showinfo
 from tkinter.filedialog import askopenfilenames, asksaveasfilename
 from tktooltip import ToolTip
-
-from sound import Sound
-from value_window import change_value
 from tkscrolledframe import ScrolledFrame
 
+from sound import Sound
+from valuewindow import change_value
 
 
-BG_COLOR = "#3a3a58"
-SAMPLERATE_LIST = [8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000]
-EXTENSION_LIST = [("Все поддерживаемые форматы", ".wav .flac .m4a .mp3 .ogg"),
-                  ("Microsoft Wave", ".wav"),
-                  ("Free Lossless Audio Codec", ".flac"),
-                  ("Apple Lossless", ".m4a"),
-                  ("MPEG Layer 3", ".mp3"),
-                  ("Ogg Vorbis Audio", ".ogg")]
+class AudioEditor(Frame):
+    STATUS_LIST = ["Остановленно", "Играет"]
+    SAMPLERATE_LIST = [8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000]
+    EXTENSION_LIST = [("Все поддерживаемые форматы", ".wav .flac .m4a .mp3 .ogg"),
+                      ("Microsoft Wave", ".wav"),
+                      ("Free Lossless Audio Codec", ".flac"),
+                      ("Apple Lossless", ".m4a"),
+                      ("MPEG Layer 3", ".mp3"),
+                      ("Ogg Vorbis Audio", ".ogg")]
 
-
-def overlay_sounds(sound_list: list[AudioSegment], samplerate: int):
-    output_sound = AudioSegment.silent(duration=max([len(sound) for sound in sound_list]), frame_rate=samplerate)
-    for sound in sound_list:
-        output_sound = output_sound.overlay(sound)
-    return output_sound
-
-
-class MainApp(Frame):
     def __init__(self, master: Misc = None,):
         super().__init__(master)
 
@@ -45,29 +36,17 @@ class MainApp(Frame):
 
         """ VARIABLES """
         self._volume = IntVar(value=0)
-        self._samplerate = IntVar(value=SAMPLERATE_LIST[5])
-        self._status = StringVar(value="")
+        self._samplerate = IntVar(value=self.SAMPLERATE_LIST[5])
+        self._status = StringVar(value=self.STATUS_LIST[0])
         self._sound_list = list[Sound]()
         self._on_exit = False
-        self._on_pause = False
 
         """ MAIN MENU """
         menu = Menu(master)
         self.master.config(menu=menu)
 
-        file_menu = Menu(menu, tearoff=0)
-        help_menu = Menu(menu, tearoff=0)
-
-        file_menu.add_command(label="Импорт файлов", command=self._open_files)
-        file_menu.add_command(label="Экспорт", command=self._save_file)
-        file_menu.add_separator()
-        file_menu.add_command(label="Выход", command=self.close)
-
-        help_menu.add_command(label="Помощь")
-        help_menu.add_command(label="О программе")
-
-        menu.add_cascade(label="Файл", menu=file_menu)
-        menu.add_cascade(label="Справка", menu=help_menu)
+        menu.add_cascade(label="Импорт файлов", command=self._open_files)
+        menu.add_cascade(label="Экспорт", command=self._save_file)
 
         """ BASE FRAMES """
         toolbar = Frame(self.master)
@@ -107,7 +86,7 @@ class MainApp(Frame):
         ToolTip(volume_scale, msg=self._msg_volume, delay=0, x_offset=-50)
 
         """ SAMPLERATE FRAME"""
-        samplerate_combobox = Combobox(samplerate_frame, values=SAMPLERATE_LIST,
+        samplerate_combobox = Combobox(samplerate_frame, values=self.SAMPLERATE_LIST,
                                        textvariable=self._samplerate, state="readonly")
         samplerate_combobox.current(5)
         samplerate_combobox.pack(fill="both", padx=2, pady=2)
@@ -117,8 +96,8 @@ class MainApp(Frame):
         self.sound_inner_frame = sound_frame.display_widget(Frame)
 
         """ STATUS BAR FRAME"""
-        self._status_bar_label = Label(status_bar, textvariable=self._status)
-        self._status_bar_label.pack(side="left")
+        status_bar_label = Label(status_bar, textvariable=self._status)
+        status_bar_label.pack(side="left")
 
         """ TRACKING FUNCTIONS START """
         thread_track_closed = threading.Thread(target=self._closed_tracking, args=())
@@ -148,14 +127,22 @@ class MainApp(Frame):
     def _wait_play(self, play_object: sa.PlayObject):
         Sound.delete_allowed = False
         play_object.wait_done()
-        self._status.set("Остановленно")
+        self._status.set(self.STATUS_LIST[0])
         Sound.delete_allowed = True
 
     def _msg_volume(self):
         return "Громоксть воспроизведения: " + str(self._volume.get()) + " дБ"
 
+    @staticmethod
+    def overlay_sounds(sound_list: list[AudioSegment], samplerate: int):
+        output_sound = AudioSegment.silent(duration=max([len(sound) for sound in sound_list]), frame_rate=samplerate)
+        for sound in sound_list:
+            output_sound = output_sound.overlay(sound)
+        output_sound = output_sound.set_frame_rate(samplerate)
+        return output_sound
+
     def _open_files(self):
-        filepath = askopenfilenames(title="Выберите один или несколько файлов", filetypes=EXTENSION_LIST)
+        filepath = askopenfilenames(title="Выберите один или несколько файлов", filetypes=self.EXTENSION_LIST)
 
         if filepath != "":
             def progress():
@@ -196,35 +183,30 @@ class MainApp(Frame):
             flag = False
 
     def _save_file(self):
-        filepath = asksaveasfilename(title="Экспорт аудиоданных", defaultextension=EXTENSION_LIST[1][1],
-                                     initialfile="Song", filetypes=EXTENSION_LIST[1:])
+        filepath = asksaveasfilename(title="Экспорт аудиоданных", defaultextension=self.EXTENSION_LIST[1][1],
+                                     initialfile="Song", filetypes=self.EXTENSION_LIST[1:])
         sound_list = [sound.get_sound() for sound in self._sound_list]
         if filepath != "":
-            sound = overlay_sounds(sound_list, self._samplerate.get())
+            sound = self.overlay_sounds(sound_list, self._samplerate.get())
             sound.export(filepath, format=os.path.splitext(filepath)[1][1:])
 
     def _play_sound(self):
-        if self._on_pause:
-            self._on_pause = False
-            self._status.set("Играет")
+        sa.stop_all()
+        sound_list = self._get_active_sound()
 
+        if len(sound_list):
+            sound = self.overlay_sounds(sound_list, self._samplerate.get()) + self._volume.get()
+            play_object = sa.play_buffer(audio_data=sound.raw_data, num_channels=sound.channels,
+                                         bytes_per_sample=sound.sample_width, sample_rate=sound.frame_rate)
+            self._status.set(self.STATUS_LIST[1])
+
+            thread = threading.Thread(target=self._wait_play, args=(play_object,))
+            thread.start()
         else:
-            sa.stop_all()
-            sound_list = self._get_active_sound()
-
-            if len(sound_list):
-                sound = overlay_sounds(sound_list, self._samplerate.get()) + self._volume.get()
-                play_object = sa.play_buffer(audio_data=sound.raw_data, num_channels=sound.channels,
-                                             bytes_per_sample=sound.sample_width, sample_rate=sound.frame_rate)
-                self._status.set("Играет")
-
-                thread = threading.Thread(target=self._wait_play, args=(play_object,))
-                thread.start()
-            else:
-                showinfo(title="Воспроизведение невозможно", message="Нет аудио для воспроизведения")
+            showinfo(title="Воспроизведение невозможно", message="Нет аудио для воспроизведения")
 
     def _get_active_sound(self):
-        sound_list = list()
+        sound_list = list[AudioSegment]()
         for sound in self._sound_list:
             sound_list.append(sound.get_sound())
         return sound_list
@@ -244,5 +226,5 @@ class MainApp(Frame):
 
 
 if __name__ == "__main__":
-    app = MainApp()
+    app = AudioEditor()
     app.mainloop()
