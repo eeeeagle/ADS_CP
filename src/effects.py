@@ -3,7 +3,7 @@ from tkinter.ttk import Checkbutton, Button, Frame, Label, LabelFrame, Scale
 from pydub import AudioSegment, effects
 from pydub.playback import play
 
-from value_window import change_value
+from valuewindow import change_value
 
 
 EFFECTS_LIST: list[str] = ["Нормализация",
@@ -313,7 +313,8 @@ def apply_effect(segment: AudioSegment):
     # CHANNEL FRAME
     for i in range(segment.channels):
         enabled_list.append(BooleanVar(value=True))
-        Checkbutton(channel_frame, text="Канал " + str(i + 1), variable=enabled_list[-1]).pack(side="top", fill="both")
+        Checkbutton(channel_frame, text="Канал " + str(i + 1),
+                    variable=enabled_list[len(enabled_list) - 1]).pack(side="top", fill="both")
 
     # LISTBOX FRAME
     listbox = Listbox(effects_frame, listvariable=effect, selectmode="single", width=50)
