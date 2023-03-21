@@ -6,9 +6,9 @@ from tkinter.ttk import Scale, LabelFrame, Label, Frame, Spinbox
 from tkinter.messagebox import showerror
 from tktooltip import ToolTip
 
-from effects_window import apply_effect
-from sample_waveform import SampleWaveform
-from value_window import change_value
+from effects import apply_effect
+from waveform import SampleWaveform
+from valuewindow import change_value
 
 
 class Sound:
@@ -19,9 +19,6 @@ class Sound:
     def __init__(self, master: Frame, filename: str):
         # VARIABLES
         self._sound = AudioSegment.from_file(filename, filename.split('.')[-1])
-        self._sample_width = self._sound.sample_width
-        self._frame_rate = self._sound.frame_rate
-        self._channels = self._sound.channels
 
         self._gain = DoubleVar(value=0.0)
         self._pan = IntVar(value=0)
@@ -102,14 +99,13 @@ class Sound:
 
         self._name_label.grid(sticky="nsew")
 
-        for i in range(0, self._channels):
+        for i in range(0, self._sound.channels):
             waveform = SampleWaveform(self._waveform_list_frame, len(self._sound))
             waveform.pack(side="top", fill="both", expand=True)
             self._waveform_list.append(waveform)
         self._update_waveform()
 
         # WAVEFORM GRID
-
         name_frame.grid_rowconfigure(0, weight=1)
         name_frame.grid_columnconfigure(0, weight=1)
 
@@ -120,16 +116,15 @@ class Sound:
         waveform_frame.grid_rowconfigure(1, weight=1)
 
         # PACK ROOT
-
         settings_frame.pack(fill="y", side="left")
         waveform_frame.pack(fill="both", side="left")
 
     def _update_waveform(self):
         mono_segments = self._sound.split_to_mono()
-        for i in range(0, self._channels):
+        for i in range(0, self._sound.channels):
             samples = mono_segments[i].get_array_of_samples()
             samples_array = np.array(samples).astype(np.float32)
-            self._waveform_list[i].update_waveform(sound=samples_array, sample_rate=self._frame_rate)
+            self._waveform_list[i].update_waveform(sound=samples_array, sample_rate=self._sound.frame_rate)
 
     def _hide(self):
         if not self._is_hide:
