@@ -30,10 +30,10 @@ class Setting(LabelFrame):
 
         super().__init__(master, borderwidth=1, relief="solid", text=label_text, labelanchor="n")
 
-        if type(default_value) is int:
-            self._value = IntVar(value=default_value)
         if type(default_value) is float:
             self._value = DoubleVar(value=default_value)
+        else:
+            self._value = IntVar(value=default_value)
 
         value_label = Label(self, textvariable=self._value, justify="center")
         scale = Scale(self, orient="horizontal", from_=scale_from, to=scale_to,
@@ -45,7 +45,7 @@ class Setting(LabelFrame):
         scale.pack(side="top", fill="both", padx=2, pady=2)
 
     def set_value(self, event):
-        if self._value is DoubleVar:
+        if type(self._value) is DoubleVar:
             self._value.set(round(float(event), 2))
         else:
             self._value.set(round(float(event)))
