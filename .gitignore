@@ -1,4 +1,5 @@
 /.idea/
 /.git/
-/app/
+/dist/
+/build/
 *.spec
